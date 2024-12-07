@@ -14,23 +14,22 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.21'  # Use a stable Go version
 
       - name: Build app
         run: ./scripts/buildprod.sh
 
-      - name: Auth
-        uses: 'google-github-actions/auth@v2'
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
       - name: Install gcloud CLI
-        uses: 'google-github-actions/setup-gcloud@v2'
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker
+      - name: Configure Docker for Google Cloud Registry
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t us-central1-docker.pkg.dev/notely-444009/notely-ar-repo/myapp:v1.0 .
-          docker push us-central1-docker.pkg.dev/notely-444009/notely-ar-repo/myapp:v1.0
+          gcloud builds submit --tag us-central1-docker.pkg.dev/notely-444009/notely-ar-repo/myapp:v1.0 . --suppress-logs
