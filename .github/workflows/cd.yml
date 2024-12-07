@@ -11,6 +11,9 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Install Goose
+        run: go get -u github.com/pressly/goose  # Install Goose for database migrations
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -34,11 +37,20 @@ jobs:
         run: |
           gcloud builds submit --tag us-central1-docker.pkg.dev/notely-444009/notely-ar-repo/myapp:v1.0 . --suppress-logs
       
+      - name: Run Migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Pass the database URL as an environment variable
+        run: |
+          goose up  # Run the migrations using Goose
+
       - name: Deploy to Cloud Run
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Pass the DATABASE_URL to the deployed service
         run: |
           gcloud run deploy notely \
             --image us-central1-docker.pkg.dev/notely-444009/notely-ar-repo/myapp:v1.0 \
             --region us-central1 \
             --allow-unauthenticated \
             --project notely-444009 \
-            --max-instances=4
+            --max-instances=4 \
+            --set-env DATABASE_URL=${{ secrets.DATABASE_URL }}  # Pass the DATABASE_URL to the deployed service
