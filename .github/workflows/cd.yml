@@ -1,56 +1,44 @@
-name: Deploy
+name: cd
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  Deploy:
+  deploy:
+    name: Deploy
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
     steps:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Install Goose
-        run: go get -u github.com/pressly/goose  # Install Goose for database migrations
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'  # Use a stable Go version
+          go-version: '1.23.0'
 
       - name: Build app
         run: ./scripts/buildprod.sh
 
-      - name: Authenticate with Google Cloud
+      - id: auth
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
-      - name: Install gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
 
-      - name: Configure Docker for Google Cloud Registry
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+      - name: Build and push Docker image
+        run: gcloud builds submit --tag REGION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:TAG .
 
-      - name: Build and Push Docker Image
-        run: |
-          gcloud builds submit --tag us-central1-docker.pkg.dev/notely-444009/notely-ar-repo/myapp:v1.0 . --suppress-logs
-      
-      - name: Run Migrations
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Pass the database URL as an environment variable
-        run: |
-          goose up  # Run the migrations using Goose
+      - name: Install goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@latest
+
+      - name: Run migrations
+        run: ./scripts/migrateup.sh
 
       - name: Deploy to Cloud Run
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Pass the DATABASE_URL to the deployed service
-        run: |
-          gcloud run deploy notely \
-            --image us-central1-docker.pkg.dev/notely-444009/notely-ar-repo/myapp:v1.0 \
-            --region us-central1 \
-            --allow-unauthenticated \
-            --project notely-444009 \
-            --max-instances=4 \
-            --set-env DATABASE_URL=${{ secrets.DATABASE_URL }}  # Pass the DATABASE_URL to the deployed service
+        run: gcloud run deploy notely --image REGION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:TAG --region REGION --allow-unauthenticated --project PROJECT_ID --max-instances=4
