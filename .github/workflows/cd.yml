@@ -23,7 +23,7 @@ jobs:
         uses: google/cloud-actions/setup-gcloud@v0.3.1
         with:
           service_account_key: ${{ secrets.GCP_CREDENTIALS }}
-          install_components: ['cloud-sdk']
+          install_components: 'cloud-sdk'
 
       - name: Build and Push Docker Image
         run: |
