@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   Deploy:
@@ -18,3 +18,13 @@ jobs:
 
       - name: Build app
         run: ./scripts/buildprod.sh
+
+      - name: Install gcloud CLI
+        uses: google/cloud-actions/setup-gcloud@v0.3.1
+        with:
+          service_account_key: ${{ secrets.GCP_CREDENTIALS }}
+          install_components: ['cloud-sdk']
+
+      - name: Build and Push Docker Image
+        run: |
+          gcloud builds submit --tag us-central1-docker.pkg.dev/notely-444009/notely-ar-repo/myapp:v1.0 .
